@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<ProjectGuid>{04660F45-29FC-4DCF-9774-001C1DEA1036}</ProjectGuid>
+		<IsPackable>false</IsPackable>
+		<OutputType>Exe</OutputType>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\upscaledb-dotnet\upscaledb-dotnet.csproj" />
+	</ItemGroup>
+	<PropertyGroup>
+		<PostBuildEvent>
+			xcopy /Y ..\..\..\..\..\win32\msvc2013\out\dll_debug_x64\upscaledb-2.2.1.dll .\runtimes\win10-x64\native\
+			xcopy /Y ..\..\..\..\..\win32\msvc2013\out\dll_debug\upscaledb-2.2.1.dll .\runtimes\win10-x86\native\
+		</PostBuildEvent>
+	</PropertyGroup>
+</Project>

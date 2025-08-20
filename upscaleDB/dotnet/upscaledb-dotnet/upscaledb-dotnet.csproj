@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <ProjectGuid>{B94FA39B-755C-426F-BA1C-0DC26397D234}</ProjectGuid>
+    <Description>.NET class library for upscaledb</Description>
+    <Company>Christoph Rupp</Company>
+    <Copyright>Copyright © 2016 Christoph Rupp</Copyright>
+    <Version>2.2.1.0</Version>
+    <FileVersion>2.2.1.0</FileVersion>
+    <NuspecFile>upscaledb-dotnet.nuspec</NuspecFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+</Project>
