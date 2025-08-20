@@ -1,0 +1,205 @@
+upscaledb 2.2.1                                   Fr 10. Mär 21:33:03 CET 2017
+(C) Christoph Rupp, chris@crupp.de; http://www.upscaledb.com
+
+This is the README file of upscaledb.
+
+Contents:
+
+1. About
+
+upscaledb is a database engine written in C/C++. It is fast, production-proven
+and easy to use.
+
+This release has a bunch of bug fixes, performance improvements and a new
+API for bulk operations.
+
+2. Changes
+
+New Features
+* Added a new API function for bulk operations (ups_db_bulk_operations in
+	ups/upscaledb_int.h)
+
+Bugfixes
+* Fixed compiler error related to inline assembly on gcc 4.8.x
+* Fixed bug when ups_cursor_overwrite would overwrite a transactional record
+	instead of the (correct) btree record
+* Fixed several bugs in the duplicate key consolidation
+* issue #80: fixed streamvbyte compilation for c++11
+* issue #79: fixed crc32 failure when reusing deleted blobs spanning
+	multiple pages
+* Fixed a bug when recovering duplicates that were inserted with one of the
+	UPS_DUPLICATE_INSERT_* flags
+* Minor improvements for the journalling performance
+* Fixed compilation issues w/ gcc 6.2.1 (Thanks, Roel Brook)
+
+Other Changes
+* Performance improvements when appending keys at the end of the database
+* The flags UPS_HINT_APPEND and UPS_HINT_PREPEND are now deprecated
+* Removed the libuv dependency; switched to boost::asio instead
+* Performance improvements when using many duplicate keys (with a
+	duplicate table spanning multiple pages)
+* Committed transactions are now batched before they are flushed to disk
+* The integer compression codecs UPS_COMPRESSOR_UINT32_GROUPVARINT and
+	UPS_COMPRESSOR_UINT32_STREAMVBYTE are now deprecated
+* The integer compression codec UPS_COMPRESSOR_UINT32_MASKEDVBYTE is now a
+	synonym for UPS_COMPRESSOR_UINT32_VARBYTE, but uses the MaskedVbyte
+	library under the hood.
+* Added Mingw compiler support (thanks, topilski)
+
+To see a list of all changes, look in the file ChangeLog.
+
+3. Features
+
+- Very fast sorted B+Tree with variable length keys
+- Basic schema support for POD types (i.e. uint32, uint64, real32 etc)
+- Very fast analytical functions
+- Can run as an in-memory database
+- Multiple databases in one file
+- Record number databases ("auto-increment")
+- Duplicate keys
+- Logging and recovery
+- Unlimited number of parallel Transactions
+- Transparent AES encryption
+- Transparent CRC32 verification
+- Various compression codecs for journal, keys and records using 
+    zlib, snappy, lzf
+- Compression for uint32 keys
+- Network access (remote databases) via TCP/Protocol Buffers
+- Very fast bi-directional database cursors
+- Configurable page size, cache size, key sizes etc
+- Runs on Linux, Unices, Microsoft Windows and other architectures
+- Uses memory mapped I/O for fast disk access (but falls back to read/write if
+    mmap is not available)
+- Uses 64bit file pointers and supports huge files (>2 GB)
+- Easy to use and well-documented
+- Open source and released under the APL 2.0 license
+- Wrappers for C++, Java, .NET, Erlang, Python, Ada and others
+
+4. Known Issues/Bugs
+
+See https://github.com/cruppstahl/upscaledb/issues.
+
+5. Compiling
+
+5.1 Linux, MacOS and other Unix systems
+
+To compile upscaledb, run ./configure, make, make install.
+
+Run `./configure --help' for more options (i.e. static/dynamic library,
+build with debugging symbols etc).
+
+5.2 Microsoft Visual Studio
+
+A Solution file is provided for Microsoft Visual C++ in the "win32" folder
+for MSVC 2013.
+All libraries can be downloaded precompiled from the upscaledb webpage.
+
+To download Microsoft Visual Studio Express Edition for free, go to
+http://msdn.microsoft.com/vstudio/express/visualc/default.aspx.
+
+5.3 Dependencies
+
+On Ubuntu, the following packages are required:
+  - libdb-dev (optional)
+  - protobuf-compiler
+  - libprotobuf-dev
+  - libgoogle-perftools-dev
+  - libboost-system-dev
+  - libboost-filesystem-dev
+  - libboost-thread-dev
+  - libboost-dev
+
+For Windows, precompiled dependencies are available here:
+https://github.com/cruppstahl/upscaledb-alien
+
+6. Testing and Example Code
+
+Make automatically compiles several example programs in the directory
+'samples'. To see upscaledb in action, just run 'samples/db1'
+or any other sample. (or 'win32/out/samples/db1/db1.exe' on Windows platforms).
+
+7. API Documentation
+
+The header files in 'include/ups' have extensive comments. Also, a doxygen
+script is available; run 'make doc' to start doxygen. The generated
+documentation is also available on the upscaledb web page.
+
+8. Porting upscaledb
+
+Porting upscaledb shouldn't be too difficult. All operating
+system dependend functions are declared in '1os/*.h' and defined
+in '1os/os_win32.cc' or '1os/os_posix.cc'.
+Other compiler- and OS-specific macros are in 'include/ups/types.h'.
+Most likely, these are the only files which have to be touched. Also see item
+9) for important macros.
+
+9. Migrating files from older versions
+
+Usually, upscaledb releases are backwards compatible. There are some exceptions,
+though. In this case tools are provided to migrate the database. First, export
+your existing database with ups_export linked against the old version.
+(ups_export links statically and will NOT be confused if your system has a
+newer version of upscaledb installed). Then use the newest version of
+ups_import to import the data into a new database. You can find ups_export
+and ups_import in the "tools" subdirectory.
+
+    Example (ups_export of 2.1.2 was renamed to ups_export-2.1.2 for clarity):
+
+    ups_export-2.1.2 input.db | ups_import --stdin output.db
+
+10. Licensing
+
+upscaledb is released under the Apache Public License (APL) 2.0. See the
+file COPYING for more information.
+
+For commercial use licenses are available. Visit http://upscaledb.com
+for more information.
+
+11. Contact
+
+Author of upscaledb is
+    Christoph Rupp
+    Paul-Preuss-Str. 63
+    80995 Muenchen/Germany
+    email: chris@crupp.de
+    web: http://www.upscaledb.com
+
+12. Other Copyrights
+
+The Google Protocol Buffers ("protobuf") library is Copyright 2008, Google Inc.
+It has the following license:
+
+    Copyright 2008, Google Inc.
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following disclaimer
+      in the documentation and/or other materials provided with the
+      distribution.
+    * Neither the name of Google Inc. nor the names of its
+      contributors may be used to endorse or promote products derived from
+      this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+    Code generated by the Protocol Buffer compiler is owned by the owner
+    of the input file used when generating it.  This code is not
+    standalone and requires a support library to be linked with it.  This
+    support library is itself covered by the above license.
+

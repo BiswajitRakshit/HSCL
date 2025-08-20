@@ -1,0 +1,300 @@
+
+x improve unittests
+
+x erlang does not build because ./configure overwrites CFLAGS
+
+x cleanup cursor code
+    x clean up the public interface
+    x BtreeCursor: use intrusive_list for linked list
+    x BtreeCursor: do not expose parent pointer
+    x LocalDb: cleanup the whole code
+    x LocalCursor: cleanup private functions
+    x create cursors on the stack
+    x avoid frequent cloning of cursors
+    x the LocalCursor should have 3 states:
+        - nil
+        - coupled to btree
+        - coupled to txn
+        x is_nil()
+        x is_btree_active()
+        x is_txn_active() 
+        x set_to_nil()
+        x activate_btree(bool exclusive = false)
+        x activate_txn(bool exclusive = false)
+
+x cleanup transactions
+    x hide refcount in base class ("ReferenceCounted")
+    x use intrusive_list.h for transactions in TxnManager
+
+x get rid of the Context object (see trello comments)
+    x remove context.env
+
+x improve journal performance
+    The journal only needs to be updated if a transaction is committed, but
+    not if it's aborted or for each separate operation.
+    x no need to have buffers in the journal - flush them after each
+        transaction was committed
+    x append to log only when txn is committed
+        In txn->commit: foreach (TxnOperation *op)
+          journal->append(op);
+        journal->append_commit(txn); // flush journal buffer
+        x fix Journal/recoverAfterChangesetAndCommit2Test
+    x refactor the code flow
+        x flush_transaction_to_journal();
+        x flush_transaction_to_changeset();
+        x flush_changeset_to_journal();
+        x flush_changeset_to_file();
+    x batch-flush multiple transactions
+    x manual test: make sure that the file sizes do not explode!
+    x make sure that the recovery tests are running stable
+    x run perftests/benchmarks
+
+x improve MaskedVbyte
+    x review the current sources
+    x use an interface similar to libfor
+    x compression (32bit, 64bit, sorted, unsorted)
+    x decompression (32bit, 64bit, sorted, unsorted)
+    x add function to select from a stream (32bit, 64bit)
+    x add function to linear_search from an unsorted stream (32bit, 64bit)
+    x add function to lower_bound search from a sorted stream (32bit, 64bit)
+    x add function to append to a stream (32bit, 64bit)
+    x add function to get compressed size of a stream (32bit, 64bit)
+
+    x scalar version must not use ANY SIMD!
+    x use lookup table for select()? run benchmarks - no!
+    x make sure to use the newest version of MaskedVbyte
+    x improve test.cc - it has lots of duplicate code
+    x test.cc - make sure asserts also fail in release mode
+    x use MaskedVbyte if SIMD is available
+    x header file: when is "length" number of integers or size of block?
+        use "size" vs "length"
+    x LICENSE should be APL2
+    x add README.md file
+    x need a run-time check to disable MaskedVbyte on older platforms
+    x publish and promote
+
+x remove os_get_simd_lane_width
+
+x more Btree refactoring
+    x once again clean up the code
+    x move range size, LocalDb*, BtreeNode* to the base class
+    x common base class for KeyList and RecordList
+    x the namespaces (Zint32, Pax, ...) are not required
+    x deprecate support for the GroupVarbyte and StreamVbyte codecs
+    x document pro/cons for each codec in the header file
+    x VARBYTE and MASKEDVBYTE become synonyms
+    x use libvbyte for the VARBYTE codec
+    x make sure to use libvbyte w/o SIMD if --disable-simd is specified
+
+x investigate a few issues that were reported by users
+    x tcmalloc does not return memory to OS (in txn with 10 mio ops) - ok
+    x c++ API improve documentation (UPS_AUTO_CLEANUP is ignored)
+    x ups_env_open with CRC32 *and* UPS_AUTO_RECOVERY *and* fsync -> fails?
+
+x make sure that UQI queries with blobs use mmap, and do not copy the blob!
+
+x recovery tests are brittle and sometimes fail
+    (enable core files and wait for segfault)
+    -> error inducer fires in a separate thread -> application terminates
+    x ignore failures in the perl script
+
+x recovering "erase": the duplicate ID is lost!? - verify and fix
+    -> needs to insert with a "duplicate position" - i.e. DUPLICATE_FIRST
+
+x fix segfault when reading an empty file
+    (happened a few times with the mysql plugin)
+
+x do not flush committed transactions immediately, but batch them
+    x add option to disable this feature (UPS_FLUSH_TRANSACTIONS_IMMEDIATELY)
+        x add to ups_bench
+    x make sure that transactions are flushed when the env is closed
+    x mysql benchmark does not work
+    x run monster tests
+        x add UPS_FLUSH_TRANSACTIONS_IMMEDIATELY
+
+x remove libuv, use boost::asio
+    -> the libuv dependency is a hassle; it's too difficult to install
+        and blocks end users from using upscaledb
+    x replace the code; make sure all unittests are working
+    x clean up handle management code
+    x check against memory leaks
+    x make sure all config settings are applied
+    x only bind to localhost (but make this configurable)
+    x fix the tests
+
+x new API for bulk operations
+    x take care: internal key/record storage will be overwritten in subsequent
+        calls!
+    x add unittests
+    x add unittests w/ user-allocated keys and records
+    x add unittests w/ approx matching - make sure that keys are copied!
+    x add negative unittests
+    x test with valgrind
+    x use from remote
+        x add unittests (re-use existing ones)
+    x use from Java
+    x use from .NET
+
+x windows build: update to protobuf 2.6.1 (fixes a memory leak)
+
+o prebuilt windows files: add JAR file to the package!
+
+-- file format changes --------------------------------------------------------
+
+o move to C++11
+    o clang-tidy with
+        modernize-use-nullptr -use-override -use-using -use-default
+            -use-bool-literals -use-auto -make-unique
+
+o can we improve space efficiency of the blobs? create header structures
+    with less overhead?
+    -> innodb has even higher overhead per blob, but don't require a freelist.
+    instead, deleted blobs are flagged as 'deleted'.
+    o reduce blob overhead to 10 bytes (1 byte flags, 1 byte checksum of the
+        id, 8 bytes allocated size/real size)
+    o get rid of the freelist; use a counter for the number of deleted blobs,
+        the total size of free bytes and track the largest free blob
+
+o can we improve performance of duplicate keys? they are slow if the
+    duplicate tables grow fast
+    alternatives: blobs form a linked list
+    -> innodb uses a linked list of blobs
+    alternatives: use a tree structure instead of a duplicate table
+    - suggestion: create a linked list of duplicates, but: needs double linked
+        list (+ 16 bytes!)
+        -> but this will only work for blobs, not for inline records!
+        -> not good!!
+    o cheap solution: split the big table into smaller ones; purge when one is
+        empty
+        o run tests for the best block size
+
+o use a faster crc32 algorithm (see Daniel Lemire's blog)
+
+o The PageManager state is currently stored in a compressed encoding, but
+    it is less efficient than the standard varbyte encoding because
+    pages > 15 * page_size have to be split. Use a standard vbyte encoding
+    instead (it will anyway be required later on).
+
+
+
+
+. create a nodejs-wrapper
+
+. improve Java API wrapper (see trello)
+
+. investigate the use of more simd code
+    x download/install http://ispc.github.io/documentation.html
+    x run the samples
+    x read the documentation
+    o create and benchmark a prototype, i.e. for "sum" (uint32_t)
+        x write the ispc functions
+        o use them in the code
+        o create benchmarking functions
+        o with and without ispc
+    o then extend the prototype for other platforms (sse2, sse4, avx, avx2)
+        and choose the correct one at runtime
+    o fix the other plugins (avg, sum)
+    o need to test the build process with and without ispc
+
+. BlobManager: move to Database
+    o the Environment maybe also needs one? not sure
+    o move record compressor to BlobManager
+    o each database keeps its "last known blob page"
+    o blob pages are not shared between databases
+    o can we remove the "db" pointer from the Context structure?
+
+. BlobManagerDisk: improve the read() code path. First check if a mapped
+    pointer is sufficient. Get a pointer to the header structure, then
+    skip the header and return the pointer.
+    Otherwise decompress and/or return a deep copy.
+
+. new test case for cursors
+    insert (1, a)
+    insert (1, b) (duplicate of 1)
+    move (last) (-> 1, b)
+    insert (1, c)
+    move (last) (-> 1, c)? is the dupecache updated correctly?
+
+. libvbyte
+    . add function to insert into a compressed sorted stream (32bit, 64bit)
+    . add function to delete from a compressed sorted stream (32bit, 64bit)
+
+
+------------------- idea soup ---------------------------------------------
+
+- compilation for ARM:
+    sudo apt-get install g++-arm-linux-gnueabihf
+    ./configure --host=arm-linux-gnueabihf --disable-simd --enable-debug
+
+o add tests to verify that the cursor is not modified if an operation fails!
+    (in cursor.cpp:LongTxnCursorTest are some wrapper functions to move or
+    insert the cursor; that's a good starting point)
+
+
+o More things to refactor in the btree
+    o EraseAction uses duplicate_index + 1, InsertAction uses duplicate_index
+        -> use a common behaviour/indexing
+    o EraseAction line 71: if the node is empty then it should be merged and
+        moved to the freelist!
+
+o when splitting and HAM_HINT_APPEND is set, the new page is appended.
+    do the same for prepend!
+
+o Implement record compression - a few notes
+    ByteSlice: Pushing the Envelop of Main Memory Data
+    Processing with a New Storage Layout
+    http://delivery.acm.org/10.1145/2750000/2747642/p31-feng.pdf
+
+    1) the user defines the record structure.
+    2) an optimization stage reorders the record columns to optimize storage
+        (i.e. with dynamic programming)
+    3) SIMD code is generated on the fly to pack, unpack records and single
+        elements (see http://stackoverflow.com/questions/4911993/how-to-generate-and-run-native-code-dynamically or ask Ben/Andi...)
+    4) Pack like PAX (group all column values together) or each record
+        standalone?
+
+o look for a better compression for DefaultRecordList, i.e.
+    - Each group is a GroupedVarInt w/ 4 bits per entry; a 64bit
+        number can then hold flags for 16 numbers
+        -> (but maybe increase this to hold at least 32 or 64 numbers, to
+            reduce the overhead ratio)
+    o create a GroupedVarInt<Max, T> class, where |Max| is the maximum number
+        of elements that are grouped, and T is the type of these elements
+        (i.e. uint64_t)
+        -> memory is managed by the caller
+        -> the state (i.e. used block size etc) is stored externally, and
+            managed by the caller
+        o append a key
+        o prepend a key
+        o insert a key in the middle
+        o grow blocks
+        o split blocks
+        o can perform copies w/o re-compressing
+
+    o try to move the Zint32 index to a base class
+    o Use small index which stores offset + bits for each group
+    o a separate bit is used to signal whether the (compressed) number is
+        a record id
+    o avoid ripple effects by growing/splitting the block
+
+o use compression also for duplicate records
+    i.e. use GroupedVarint for inline duplicates
+
+o Concurrency: merge BtreeUpdates in the background
+
+o when recovering, give users the choice if active transactions should be
+    aborted (default behavior) or re-created
+    o needs a function to enumerate them
+
+o A new transactional mode: read-only transactions can run "in the past" - only
+    on committed transactions. therefore they avoid conflicts and will always
+    succeed.
+
+o need a function to get the txn of a conflict (same as in v2)
+    ups_status_t ups_txn_get_conflicting_txn(ups_txn_t *txn, ups_txn_t **other);
+        oder: txn-id zurückgeben? sonst gibt's ne race condition wenn ein anderer
+        thread "other" committed/aborted
+    o also add to c++ API
+    o add documentation (header file)
+    o add documentation (wiki)
+
